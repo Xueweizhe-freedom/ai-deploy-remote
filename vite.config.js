@@ -4,6 +4,7 @@ import { resolve } from 'path'
 
 export default defineConfig({
   plugins: [vue()],
+  base: '/ai-deploy-remote/',
   resolve: {
     alias: {
       '@': resolve(__dirname, 'src')
