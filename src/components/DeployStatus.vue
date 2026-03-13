@@ -52,6 +52,42 @@
       <p class="success-desc">您的网站已成功部署到 GitHub Pages</p>
     </div>
     
+    <!-- 后端项目不支持提示 -->
+    <div v-else-if="store.isError && store.projectType?.isBackend" class="status-error backend-notice">
+      <div class="error-icon">
+        <el-icon><Warning /></el-icon>
+      </div>
+      <h3 class="error-title">不支持后端项目</h3>
+      <p class="error-desc">
+        检测到该项目包含后端代码，本工具仅支持部署纯前端项目。
+      </p>
+      <div class="backend-indicators" v-if="store.projectType?.backendIndicators?.length">
+        <p class="indicators-title">检测到的后端特征：</p>
+        <div class="indicators-list">
+          <el-tag 
+            v-for="(indicator, index) in store.projectType.backendIndicators.slice(0, 5)" 
+            :key="index"
+            type="warning"
+            size="small"
+            class="indicator-tag"
+          >
+            {{ indicator }}
+          </el-tag>
+        </div>
+      </div>
+      <div class="suggestion">
+        <p>建议：</p>
+        <ul>
+          <li>如果是全栈项目，请将前端部分分离出来单独部署</li>
+          <li>后端项目建议使用 Vercel、Railway 或云服务器部署</li>
+          <li>纯静态网站请确保包含 index.html 文件</li>
+        </ul>
+      </div>
+      <el-button type="primary" @click="store.resetDeploy">
+        返回
+      </el-button>
+    </div>
+    
     <!-- 错误状态 -->
     <div v-else-if="store.isError" class="status-error">
       <div class="error-icon">
@@ -68,7 +104,7 @@
 
 <script setup>
 import { useDeployStore } from '@/stores/deployStore.js'
-import { Check, Loading, CircleCheck, CircleClose } from '@element-plus/icons-vue'
+import { Check, Loading, CircleCheck, CircleClose, Warning } from '@element-plus/icons-vue'
 
 const store = useDeployStore()
 
@@ -304,6 +340,75 @@ const deploySteps = [
   font-size: $font-size-sm;
   margin: 0 0 20px;
   line-height: 1.6;
+}
+
+// 后端项目提示特殊样式
+.backend-notice {
+  background: linear-gradient(145deg, rgba(245, 158, 11, 0.1) 0%, rgba(20, 20, 35, 0.9) 100%);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  
+  .error-icon {
+    background: rgba(245, 158, 11, 0.2);
+    
+    .el-icon {
+      color: $warning-color;
+    }
+  }
+  
+  .error-title {
+    color: $warning-color;
+  }
+}
+
+.backend-indicators {
+  margin: 20px 0;
+  text-align: left;
+  
+  .indicators-title {
+    color: $text-secondary;
+    font-size: $font-size-sm;
+    margin-bottom: 12px;
+    text-align: center;
+  }
+  
+  .indicators-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+  }
+  
+  .indicator-tag {
+    background: rgba(245, 158, 11, 0.15);
+    border-color: rgba(245, 158, 11, 0.3);
+    color: $warning-color;
+  }
+}
+
+.suggestion {
+  margin: 20px 0;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: $radius-lg;
+  text-align: left;
+  
+  p {
+    color: $text-primary;
+    font-weight: $font-weight-semibold;
+    margin: 0 0 10px;
+  }
+  
+  ul {
+    margin: 0;
+    padding-left: 20px;
+    color: $text-secondary;
+    font-size: $font-size-sm;
+    line-height: 1.8;
+  }
+  
+  li {
+    margin-bottom: 4px;
+  }
 }
 
 @keyframes spin {

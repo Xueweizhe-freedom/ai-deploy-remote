@@ -169,6 +169,42 @@ export const useDeployStore = defineStore('deploy', () => {
       projectType.value = checkResult.data.projectType
       pagesInfo.value = checkResult.data.pages
       
+      // 检查是否为后端项目
+      if (projectType.value && projectType.value.isBackend) {
+        deployStatus.value = 'error'
+        deployError.value = '检测到后端项目，不支持部署'
+        
+        // 添加到历史记录（失败）
+        addToHistory({
+          url: repoUrl.value,
+          repoName: `${parsed.username}/${parsed.repo}`,
+          timestamp: new Date().toISOString(),
+          status: 'error',
+          error: '后端项目不支持',
+          projectType: projectType.value
+        })
+        
+        return false
+      }
+      
+      // 检查是否可部署
+      if (projectType.value && !projectType.value.deployable) {
+        deployStatus.value = 'error'
+        deployError.value = projectType.value.reason || '该项目类型不支持部署'
+        
+        // 添加到历史记录（失败）
+        addToHistory({
+          url: repoUrl.value,
+          repoName: `${parsed.username}/${parsed.repo}`,
+          timestamp: new Date().toISOString(),
+          status: 'error',
+          error: projectType.value.reason || '不支持的项目类型',
+          projectType: projectType.value
+        })
+        
+        return false
+      }
+      
       await delay(500)
       
       // 步骤 3-6: 模拟部署流程

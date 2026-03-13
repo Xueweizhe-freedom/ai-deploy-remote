@@ -79,8 +79,45 @@ export async function getRepoContents(username, repo, path = '', ref = '') {
 }
 
 /**
+ * 后端项目特征文件/依赖
+ */
+const BACKEND_INDICATORS = {
+  // 后端框架依赖
+  dependencies: [
+    'express', 'koa', 'fastify', 'hapi', 'restify',  // Node.js
+    'django', 'flask', 'fastapi', 'tornado',          // Python
+    'spring-boot', 'spring-boot-starter',             // Java
+    'laravel', 'symfony', 'codeigniter',              // PHP
+    'rails', 'sinatra',                               // Ruby
+    'gin', 'echo', 'fiber',                           // Go
+    'actix-web', 'rocket', 'warp',                    // Rust
+    'aspnetcore', 'nancy',                            // .NET
+  ],
+  // 后端特征文件
+  files: [
+    'server.js', 'app.js', 'index.js',                // Node.js 入口
+    'server.ts', 'app.ts', 'index.ts',
+    'manage.py', 'requirements.txt', ' Pipfile',      // Python
+    'pom.xml', 'build.gradle',                        // Java
+    'composer.json', 'artisan',                       // PHP
+    'Gemfile', 'config.ru',                           // Ruby
+    'go.mod', 'main.go',                              // Go
+    'Cargo.toml', 'main.rs',                          // Rust
+    'Program.cs', 'Startup.cs', '.csproj',            // .NET
+    'Dockerfile', 'docker-compose.yml',               // Docker
+    'nginx.conf', '.htaccess',                        // 服务器配置
+  ],
+  // 数据库相关
+  databaseFiles: [
+    'schema.sql', 'database.sql', 'dump.sql',
+    'migrations', 'seeders', 'models'
+  ]
+}
+
+/**
  * 检测是否为前端项目
  * 检查是否存在 index.html 或 package.json 等前端项目特征文件
+ * 同时检测是否为后端项目，给出明确提示
  * @param {string} username 
  * @param {string} repo 
  * @returns {Promise<Object>} - 项目类型检测结果
@@ -104,75 +141,132 @@ export async function detectProjectType(username, repo) {
     const projectType = {
       type: 'unknown',
       isFrontend: false,
+      isBackend: false,
       hasIndexHtml: false,
       hasPackageJson: false,
       buildTool: null,
-      framework: null
+      framework: null,
+      backendIndicators: [],
+      deployable: false,
+      reason: null
     }
 
-    // 检查 index.html
-    if (fileNames.includes('index.html')) {
-      projectType.hasIndexHtml = true
-      projectType.isFrontend = true
-      projectType.type = 'static'
+    // ===== 首先检测是否为后端项目 =====
+    
+    // 检查后端的特征文件
+    for (const indicatorFile of BACKEND_INDICATORS.files) {
+      if (fileNames.includes(indicatorFile.toLowerCase())) {
+        projectType.isBackend = true
+        projectType.backendIndicators.push(indicatorFile)
+      }
+    }
+    
+    // 检查后端的特征目录
+    for (const indicatorDir of BACKEND_INDICATORS.databaseFiles) {
+      if (fileNames.includes(indicatorDir.toLowerCase())) {
+        projectType.isBackend = true
+        projectType.backendIndicators.push(indicatorDir + '/')
+      }
     }
 
-    // 检查 package.json
+    // 检查 package.json 中的后端依赖
     if (fileNames.includes('package.json')) {
-      projectType.hasPackageJson = true
-      projectType.isFrontend = true
-      
-      // 获取 package.json 内容来检测框架
       const packageJsonResult = await getPackageJson(username, repo)
       if (packageJsonResult.success) {
         const pkg = packageJsonResult.data
-        const dependencies = {
+        const allDependencies = {
           ...pkg.dependencies,
           ...pkg.devDependencies
         }
 
-        // 检测框架
-        if (dependencies.vue) {
-          projectType.framework = 'Vue'
-          projectType.type = 'vue'
-        } else if (dependencies.react || dependencies['react-dom']) {
-          projectType.framework = 'React'
-          projectType.type = 'react'
-        } else if (dependencies.next) {
-          projectType.framework = 'Next.js'
-          projectType.type = 'nextjs'
-        } else if (dependencies.nuxt) {
-          projectType.framework = 'Nuxt.js'
-          projectType.type = 'nuxt'
+        // 检测后端依赖
+        for (const backendDep of BACKEND_INDICATORS.dependencies) {
+          if (allDependencies[backendDep]) {
+            projectType.isBackend = true
+            projectType.backendIndicators.push(backendDep)
+          }
         }
 
-        // 检测构建工具
-        if (dependencies.vite || fileNames.includes('vite.config.js') || fileNames.includes('vite.config.ts')) {
-          projectType.buildTool = 'Vite'
-        } else if (dependencies.webpack || fileNames.includes('webpack.config.js')) {
-          projectType.buildTool = 'Webpack'
-        } else if (dependencies['@angular/cli']) {
-          projectType.buildTool = 'Angular CLI'
+        // 检测前端框架
+        if (!projectType.isBackend) {
+          if (allDependencies.vue) {
+            projectType.framework = 'Vue'
+            projectType.type = 'vue'
+          } else if (allDependencies.react || allDependencies['react-dom']) {
+            projectType.framework = 'React'
+            projectType.type = 'react'
+          } else if (allDependencies.next) {
+            // Next.js 需要特殊处理 - 如果是静态导出模式可以部署
+            projectType.framework = 'Next.js'
+            projectType.type = 'nextjs'
+          } else if (allDependencies.nuxt) {
+            projectType.framework = 'Nuxt.js'
+            projectType.type = 'nuxt'
+          } else if (allDependencies.angular || allDependencies['@angular/core']) {
+            projectType.framework = 'Angular'
+            projectType.type = 'angular'
+          } else if (allDependencies.svelte) {
+            projectType.framework = 'Svelte'
+            projectType.type = 'svelte'
+          }
+
+          // 检测构建工具
+          if (allDependencies.vite || fileNames.includes('vite.config.js') || fileNames.includes('vite.config.ts')) {
+            projectType.buildTool = 'Vite'
+          } else if (allDependencies.webpack || fileNames.includes('webpack.config.js')) {
+            projectType.buildTool = 'Webpack'
+          } else if (allDependencies['@angular/cli']) {
+            projectType.buildTool = 'Angular CLI'
+          } else if (allDependencies['react-scripts']) {
+            projectType.buildTool = 'Create React App'
+          }
         }
       }
     }
 
+    // 检查 index.html（纯静态网站）
+    if (fileNames.includes('index.html') && !projectType.isBackend) {
+      projectType.hasIndexHtml = true
+      projectType.type = 'static'
+    }
+
     // 检查特定配置文件
-    if (fileNames.includes('vite.config.js') || fileNames.includes('vite.config.ts')) {
-      projectType.buildTool = projectType.buildTool || 'Vite'
-    }
-    if (fileNames.includes('next.config.js') || fileNames.includes('next.config.ts')) {
-      projectType.type = 'nextjs'
-      projectType.framework = 'Next.js'
-    }
-    if (fileNames.includes('nuxt.config.js') || fileNames.includes('nuxt.config.ts')) {
-      projectType.type = 'nuxt'
-      projectType.framework = 'Nuxt.js'
+    if (!projectType.isBackend) {
+      if (fileNames.includes('vite.config.js') || fileNames.includes('vite.config.ts')) {
+        projectType.buildTool = projectType.buildTool || 'Vite'
+      }
+      if (fileNames.includes('next.config.js') || fileNames.includes('next.config.ts')) {
+        projectType.type = 'nextjs'
+        projectType.framework = projectType.framework || 'Next.js'
+      }
+      if (fileNames.includes('nuxt.config.js') || fileNames.includes('nuxt.config.ts')) {
+        projectType.type = 'nuxt'
+        projectType.framework = projectType.framework || 'Nuxt.js'
+      }
+      if (fileNames.includes('svelte.config.js')) {
+        projectType.type = 'svelte'
+        projectType.framework = projectType.framework || 'Svelte'
+      }
     }
 
     // 如果存在 dist 或 build 目录，说明可能是已构建的项目
     if (fileNames.includes('dist') || fileNames.includes('build')) {
       projectType.hasBuildDir = true
+    }
+
+    // ===== 判断是否可以部署 =====
+    if (projectType.isBackend) {
+      // 后端项目不支持
+      projectType.deployable = false
+      projectType.reason = '检测到后端代码'
+    } else if (projectType.type === 'unknown') {
+      // 未知类型
+      projectType.deployable = false
+      projectType.reason = '无法识别项目类型'
+    } else {
+      // 前端项目可以部署
+      projectType.isFrontend = true
+      projectType.deployable = true
     }
 
     return {
