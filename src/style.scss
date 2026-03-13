@@ -1,0 +1,411 @@
+/**
+ * 全局样式
+ * 重置样式、基础样式、工具类
+ */
+
+// ============ 导入变量 ============
+@use '@/style/variables.scss' as *;
+
+// ============ CSS Reset ============
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  font-family: $font-family-base;
+  font-size: $font-size-base;
+  line-height: 1.5;
+  color: $text-primary;
+  background-color: $bg-primary;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+// ============ 滚动条样式 ============
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: $bg-secondary;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: $radius-full;
+  
+  &:hover {
+    background: rgba(255, 255, 255, 0.3);
+  }
+}
+
+// ============ 选中文本样式 ============
+::selection {
+  background: rgba(99, 102, 241, 0.3);
+  color: $text-primary;
+}
+
+// ============ 链接样式 ============
+a {
+  color: $primary-light;
+  text-decoration: none;
+  transition: color $transition-fast;
+  
+  &:hover {
+    color: $primary-color;
+  }
+}
+
+// ============ 按钮基础样式 ============
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  outline: none;
+}
+
+// ============ 输入框基础样式 ============
+input,
+textarea {
+  font-family: inherit;
+  outline: none;
+  
+  &::placeholder {
+    color: $text-muted;
+  }
+}
+
+// ============ Element Plus 主题覆盖 ============
+
+// 按钮
+.el-button {
+  &--primary {
+    background: $gradient-primary;
+    border: none;
+    
+    &:hover,
+    &:focus {
+      background: $gradient-primary;
+      opacity: 0.9;
+    }
+    
+    &:active {
+      opacity: 0.8;
+    }
+    
+    &.is-plain {
+      background: transparent;
+      border: 1px solid $primary-color;
+      color: $primary-light;
+      
+      &:hover {
+        background: rgba(99, 102, 241, 0.1);
+      }
+    }
+  }
+  
+  &--default {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid $border-color;
+    color: $text-secondary;
+    
+    &:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: $border-color-hover;
+      color: $text-primary;
+    }
+  }
+  
+  &--text {
+    color: $text-secondary;
+    
+    &:hover {
+      color: $text-primary;
+    }
+  }
+  
+  &.is-link {
+    color: $primary-light;
+    
+    &:hover {
+      color: $primary-color;
+    }
+  }
+}
+
+// 输入框
+.el-input {
+  &__wrapper {
+    background: rgba(255, 255, 255, 0.05);
+    box-shadow: 0 0 0 1px $border-color inset;
+    
+    &:hover {
+      box-shadow: 0 0 0 1px $border-color-hover inset;
+    }
+    
+    &.is-focus {
+      box-shadow: 0 0 0 1px $primary-color inset;
+    }
+  }
+  
+  &__inner {
+    color: $text-primary;
+    
+    &::placeholder {
+      color: $text-muted;
+    }
+  }
+  
+  &__prefix,
+  &__suffix {
+    color: $text-muted;
+  }
+}
+
+// 消息提示
+.el-message {
+  background: $bg-card;
+  border: 1px solid $border-color;
+  backdrop-filter: blur(10px);
+  
+  &--success {
+    background: rgba(34, 197, 94, 0.1);
+    border-color: rgba(34, 197, 94, 0.3);
+    
+    .el-message__content {
+      color: $success-color;
+    }
+  }
+  
+  &--error {
+    background: rgba(239, 68, 68, 0.1);
+    border-color: rgba(239, 68, 68, 0.3);
+    
+    .el-message__content {
+      color: $error-color;
+    }
+  }
+  
+  &--warning {
+    background: rgba(245, 158, 11, 0.1);
+    border-color: rgba(245, 158, 11, 0.3);
+    
+    .el-message__content {
+      color: $warning-color;
+    }
+  }
+}
+
+// 对话框
+.el-dialog {
+  background: $bg-secondary;
+  border: 1px solid $border-color;
+  border-radius: $radius-xl;
+  
+  &__header {
+    color: $text-primary;
+    border-bottom: 1px solid $border-color;
+    padding: 20px 24px;
+    margin: 0;
+  }
+  
+  &__title {
+    color: $text-primary;
+    font-weight: $font-weight-semibold;
+  }
+  
+  &__body {
+    color: $text-secondary;
+    padding: 24px;
+  }
+  
+  &__footer {
+    border-top: 1px solid $border-color;
+    padding: 16px 24px;
+  }
+}
+
+// 确认框
+.el-message-box {
+  background: $bg-secondary;
+  border: 1px solid $border-color;
+  border-radius: $radius-xl;
+  
+  &__header {
+    color: $text-primary;
+  }
+  
+  &__title {
+    color: $text-primary;
+  }
+  
+  &__content {
+    color: $text-secondary;
+  }
+}
+
+// 加载动画
+.el-loading-mask {
+  background: rgba(15, 15, 26, 0.8);
+  backdrop-filter: blur(4px);
+}
+
+.el-loading-spinner {
+  .circular {
+    color: $primary-color;
+  }
+  
+  .el-loading-text {
+    color: $text-secondary;
+  }
+}
+
+// ============ 工具类 ============
+
+// 文本对齐
+.text-center { text-align: center; }
+.text-left { text-align: left; }
+.text-right { text-align: right; }
+
+// 文本颜色
+.text-primary { color: $text-primary; }
+.text-secondary { color: $text-secondary; }
+.text-muted { color: $text-muted; }
+.text-success { color: $success-color; }
+.text-error { color: $error-color; }
+.text-warning { color: $warning-color; }
+
+// 字体粗细
+.font-normal { font-weight: $font-weight-normal; }
+.font-medium { font-weight: $font-weight-medium; }
+.font-semibold { font-weight: $font-weight-semibold; }
+.font-bold { font-weight: $font-weight-bold; }
+
+// 间距
+.mt-0 { margin-top: 0; }
+.mt-1 { margin-top: $spacing-xs; }
+.mt-2 { margin-top: $spacing-sm; }
+.mt-3 { margin-top: $spacing-md; }
+.mt-4 { margin-top: $spacing-lg; }
+.mt-5 { margin-top: $spacing-xl; }
+
+.mb-0 { margin-bottom: 0; }
+.mb-1 { margin-bottom: $spacing-xs; }
+.mb-2 { margin-bottom: $spacing-sm; }
+.mb-3 { margin-bottom: $spacing-md; }
+.mb-4 { margin-bottom: $spacing-lg; }
+.mb-5 { margin-bottom: $spacing-xl; }
+
+// Flex 布局
+.flex { display: flex; }
+.flex-col { flex-direction: column; }
+.items-center { align-items: center; }
+.items-start { align-items: flex-start; }
+.items-end { align-items: flex-end; }
+.justify-center { justify-content: center; }
+.justify-between { justify-content: space-between; }
+.flex-1 { flex: 1; }
+.gap-1 { gap: $spacing-xs; }
+.gap-2 { gap: $spacing-sm; }
+.gap-3 { gap: $spacing-md; }
+.gap-4 { gap: $spacing-lg; }
+
+// 隐藏
+.hidden { display: none; }
+.invisible { visibility: hidden; }
+
+// 响应式隐藏
+@media (max-width: $breakpoint-sm) {
+  .hidden-sm { display: none; }
+}
+
+@media (max-width: $breakpoint-md) {
+  .hidden-md { display: none; }
+}
+
+@media (max-width: $breakpoint-lg) {
+  .hidden-lg { display: none; }
+}
+
+// ============ 动画 ============
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.5s ease;
+}
+
+.animate-fadeInUp {
+  animation: fadeInUp 0.5s ease;
+}
+
+.animate-pulse {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+// ============ 玻璃态效果 ============
+.glass {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+// ============ 渐变文字 ============
+.gradient-text {
+  background: $gradient-primary;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}

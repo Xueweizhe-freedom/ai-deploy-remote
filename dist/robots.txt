@@ -1,0 +1,27 @@
+# robots.txt for AI Deploy
+# https://www.robotstxt.org/robotstxt.html
+
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /admin/
+Disallow: /internal/
+
+# 限制爬虫访问频率
+Crawl-delay: 10
+
+# 禁止特定爬虫
+User-agent: AhrefsBot
+Disallow: /
+
+User-agent: SemrushBot
+Disallow: /
+
+User-agent: MJ12bot
+Disallow: /
+
+User-agent: DotBot
+Disallow: /
+
+# Sitemap
+Sitemap: https://your-domain.com/sitemap.xml
