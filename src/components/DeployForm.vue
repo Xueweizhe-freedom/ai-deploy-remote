@@ -7,7 +7,7 @@
         size="large"
         class="repo-input"
         :disabled="store.isDeploying"
-        @keyup.enter="handleDeploy"
+        @keyup.enter="handleNetlifyDeploy"
         @input="handleInput"
       >
         <template #prefix>
