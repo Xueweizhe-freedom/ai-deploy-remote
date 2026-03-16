@@ -4,7 +4,7 @@
   "description": "GitHub 前端项目一键部署工具",
   "type": "module",
   "engines": {
-    "node": ">=18 <21"
+    "node": "18.x"
   },
   "scripts": {
     "dev": "vite",
