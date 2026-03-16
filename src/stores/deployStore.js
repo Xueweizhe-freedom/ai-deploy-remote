@@ -21,6 +21,12 @@ import {
   deployProject,
   pollDeploymentStatus
 } from '@/api/vercelApi.js'
+import {
+  createPagesProject,
+  createPagesDeployment,
+  pollPagesDeploymentStatus
+} from '@/api/cloudflareApi.js'
+import NetlifyApi from '@/api/netlifyApi.js'
 
 // 本地存储键名
 const HISTORY_KEY = 'deploy_history'
@@ -357,6 +363,9 @@ export const useDeployStore = defineStore('deploy', () => {
       deployStatus.value = 'deploying'
       updateStep(3, '创建 Vercel 项目...')
       
+      // 调试：检查 repoInfo.id
+      console.log('Creating project with repoId:', repoInfo.value?.id, 'repoInfo:', repoInfo.value)
+      
       const projectResult = await createProject(
         parsed.repo,
         repoUrl.value,
@@ -372,10 +381,14 @@ export const useDeployStore = defineStore('deploy', () => {
       // 步骤 4: 开始部署
       updateStep(4, '开始构建部署...')
       
+      // 调试日志
+      console.log('Deploying with repoId:', repoInfo.value.id, 'repoInfo:', repoInfo.value)
+      
       const deployResult_data = await deployProject(
         projectName,
         repoUrl.value,
-        repoInfo.value.defaultBranch || 'main'
+        repoInfo.value.defaultBranch || 'main',
+        repoInfo.value.id
       )
       
       if (!deployResult_data.success) {
@@ -399,6 +412,31 @@ export const useDeployStore = defineStore('deploy', () => {
           }
         }
       )
+      
+      // 如果轮询超时，但项目已创建，返回项目链接
+      if (!pollResult.success && pollResult.error?.includes('超时')) {
+        deployStatus.value = 'success'
+        deployResult.value = {
+          url: `https://${projectName}.vercel.app`,
+          repoInfo: repoInfo.value,
+          projectType: projectType.value,
+          deployedAt: new Date().toISOString(),
+          isVercel: true,
+          pending: true
+        }
+        
+        addToHistory({
+          url: repoUrl.value,
+          deployUrl: `https://${projectName}.vercel.app`,
+          repoName: `${parsed.username}/${parsed.repo}`,
+          timestamp: new Date().toISOString(),
+          status: 'success',
+          isVercel: true,
+          pending: true
+        })
+        
+        return true
+      }
       
       if (!pollResult.success) {
         throw new Error(pollResult.error)
@@ -446,6 +484,364 @@ export const useDeployStore = defineStore('deploy', () => {
     }
   }
   
+  /**
+   * 使用 Netlify 进行真实部署
+   * @returns {Promise<boolean>}
+   */
+  async function startNetlifyDeploy() {
+    // 验证输入
+    if (!validateInput()) {
+      deployStatus.value = 'error'
+      return false
+    }
+    
+    // 解析仓库地址
+    const parsed = parseRepoUrl(repoUrl.value)
+    if (!parsed) {
+      inputError.value = '无法解析仓库地址'
+      deployStatus.value = 'error'
+      return false
+    }
+    
+    // 记录请求
+    recordRequest()
+    
+    // 重置状态
+    deployStatus.value = 'validating'
+    currentStep.value = 1
+    totalSteps.value = 6
+    deployProgress.value = 0
+    deployError.value = ''
+    deployResult.value = null
+    
+    try {
+      // 步骤 1: 解析仓库
+      updateStep(1, '解析仓库地址...')
+      await delay(300)
+      
+      // 步骤 2: 获取仓库信息
+      deployStatus.value = 'parsing'
+      updateStep(2, '获取仓库信息...')
+      
+      const checkResult = await checkDeployability(parsed.username, parsed.repo)
+      
+      if (!checkResult.success) {
+        throw new Error(checkResult.error)
+      }
+      
+      repoInfo.value = checkResult.data.repo
+      projectType.value = checkResult.data.projectType
+      pagesInfo.value = checkResult.data.pages
+      
+      // 检查是否为后端项目
+      if (projectType.value && projectType.value.isBackend) {
+        deployStatus.value = 'error'
+        deployError.value = '检测到后端项目，不支持部署'
+        
+        addToHistory({
+          url: repoUrl.value,
+          repoName: `${parsed.username}/${parsed.repo}`,
+          timestamp: new Date().toISOString(),
+          status: 'error',
+          error: '后端项目不支持',
+          projectType: projectType.value
+        })
+        
+        return false
+      }
+      
+      // 检查是否可部署
+      if (projectType.value && !projectType.value.deployable) {
+        deployStatus.value = 'error'
+        deployError.value = projectType.value.reason || '该项目类型不支持部署'
+        
+        addToHistory({
+          url: repoUrl.value,
+          repoName: `${parsed.username}/${parsed.repo}`,
+          timestamp: new Date().toISOString(),
+          status: 'error',
+          error: projectType.value.reason || '不支持的项目类型',
+          projectType: projectType.value
+        })
+        
+        return false
+      }
+      
+      await delay(500)
+      
+      // 步骤 3: 创建 Netlify 站点
+      deployStatus.value = 'deploying'
+      updateStep(3, '创建 Netlify 站点...')
+      
+      const netlifyApi = new NetlifyApi(import.meta.env.VITE_NETLIFY_TOKEN || 'nfp_3yDSMdZTP1FTZGEJKBQi6Uhu7XUcDRbR8bae')
+      
+      const siteResult = await netlifyApi.createSite(parsed.repo, repoUrl.value)
+      
+      if (!siteResult.success) {
+        throw new Error(siteResult.error)
+      }
+      
+      const siteId = siteResult.siteId
+      const siteUrl = siteResult.url
+      
+      // 步骤 4-5: 轮询部署状态
+      updateStep(4, '等待构建完成...')
+      
+      let deployStatus_result = { status: 'building' }
+      let attempts = 0
+      const maxAttempts = 30
+      
+      while (attempts < maxAttempts && deployStatus_result.status === 'building') {
+        await delay(5000)
+        deployStatus_result = await netlifyApi.getDeployStatus(siteId)
+        attempts++
+        
+        if (deployStatus_result.status === 'building') {
+          stepMessage.value = `正在构建中... (${attempts}/${maxAttempts})`
+          deployProgress.value = Math.min(50 + (attempts / maxAttempts) * 40, 90)
+        }
+      }
+      
+      // 步骤 6: 部署完成
+      updateStep(6, '部署完成！')
+      deployStatus.value = 'success'
+      deployResult.value = {
+        url: siteUrl,
+        adminUrl: siteResult.adminUrl,
+        repoInfo: repoInfo.value,
+        projectType: projectType.value,
+        deployedAt: new Date().toISOString(),
+        isNetlify: true
+      }
+      
+      // 添加到历史记录
+      addToHistory({
+        url: repoUrl.value,
+        deployUrl: siteUrl,
+        repoName: `${parsed.username}/${parsed.repo}`,
+        timestamp: new Date().toISOString(),
+        status: 'success',
+        isNetlify: true
+      })
+      
+      return true
+      
+    } catch (error) {
+      deployStatus.value = 'error'
+      deployError.value = error.message || '部署失败，请稍后重试'
+      
+      // 添加到历史记录（失败）
+      addToHistory({
+        url: repoUrl.value,
+        repoName: `${parsed.username}/${parsed.repo}`,
+        timestamp: new Date().toISOString(),
+        status: 'error',
+        error: error.message
+      })
+      
+      return false
+    }
+  }
+
+  /**
+   * 使用 Cloudflare Pages 进行真实部署
+   * @returns {Promise<boolean>}
+   */
+  async function startCloudflareDeploy() {
+    // 验证输入
+    if (!validateInput()) {
+      deployStatus.value = 'error'
+      return false
+    }
+    
+    // 解析仓库地址
+    const parsed = parseRepoUrl(repoUrl.value)
+    if (!parsed) {
+      inputError.value = '无法解析仓库地址'
+      deployStatus.value = 'error'
+      return false
+    }
+    
+    // 记录请求
+    recordRequest()
+    
+    // 重置状态
+    deployStatus.value = 'validating'
+    currentStep.value = 1
+    totalSteps.value = 6
+    deployProgress.value = 0
+    deployError.value = ''
+    deployResult.value = null
+    
+    try {
+      // 步骤 1: 解析仓库
+      updateStep(1, '解析仓库地址...')
+      await delay(300)
+      
+      // 步骤 2: 获取仓库信息
+      deployStatus.value = 'parsing'
+      updateStep(2, '获取仓库信息...')
+      
+      const checkResult = await checkDeployability(parsed.username, parsed.repo)
+      
+      if (!checkResult.success) {
+        throw new Error(checkResult.error)
+      }
+      
+      repoInfo.value = checkResult.data.repo
+      projectType.value = checkResult.data.projectType
+      pagesInfo.value = checkResult.data.pages
+      
+      // 检查是否为后端项目
+      if (projectType.value && projectType.value.isBackend) {
+        deployStatus.value = 'error'
+        deployError.value = '检测到后端项目，不支持部署'
+        
+        addToHistory({
+          url: repoUrl.value,
+          repoName: `${parsed.username}/${parsed.repo}`,
+          timestamp: new Date().toISOString(),
+          status: 'error',
+          error: '后端项目不支持',
+          projectType: projectType.value
+        })
+        
+        return false
+      }
+      
+      // 检查是否可部署
+      if (projectType.value && !projectType.value.deployable) {
+        deployStatus.value = 'error'
+        deployError.value = projectType.value.reason || '该项目类型不支持部署'
+        
+        addToHistory({
+          url: repoUrl.value,
+          repoName: `${parsed.username}/${parsed.repo}`,
+          timestamp: new Date().toISOString(),
+          status: 'error',
+          error: projectType.value.reason || '不支持的项目类型',
+          projectType: projectType.value
+        })
+        
+        return false
+      }
+      
+      await delay(500)
+      
+      // 步骤 3: 创建 Cloudflare Pages 项目
+      deployStatus.value = 'deploying'
+      updateStep(3, '创建 Cloudflare Pages 项目...')
+      
+      const projectResult = await createPagesProject(
+        parsed.repo,
+        repoUrl.value
+      )
+      
+      if (!projectResult.success) {
+        throw new Error(projectResult.error)
+      }
+      
+      const projectName = projectResult.data.name
+      
+      // 步骤 4: 开始部署
+      updateStep(4, '开始构建部署...')
+      
+      const deployResult_data = await createPagesDeployment(projectName)
+      
+      if (!deployResult_data.success) {
+        throw new Error(deployResult_data.error)
+      }
+      
+      const deploymentId = deployResult_data.data.id
+      
+      // 步骤 5-6: 轮询部署状态
+      updateStep(5, '等待构建完成...')
+      
+      const pollResult = await pollPagesDeploymentStatus(
+        projectName,
+        deploymentId,
+        (progress) => {
+          if (progress.status === 'building') {
+            stepMessage.value = '正在构建中...'
+            deployProgress.value = 70
+          } else if (progress.status === 'deploying') {
+            stepMessage.value = '正在部署...'
+            deployProgress.value = 90
+          }
+        }
+      )
+      
+      // 如果轮询超时，但项目已创建，返回项目链接
+      if (!pollResult.success && pollResult.error?.includes('超时')) {
+        updateStep(6, '部署进行中...')
+        deployStatus.value = 'success'
+        deployResult.value = {
+          url: `https://${projectName}.pages.dev`,
+          repoInfo: repoInfo.value,
+          projectType: projectType.value,
+          deployedAt: new Date().toISOString(),
+          isCloudflare: true,
+          pending: true
+        }
+        
+        addToHistory({
+          url: repoUrl.value,
+          deployUrl: `https://${projectName}.pages.dev`,
+          repoName: `${parsed.username}/${parsed.repo}`,
+          timestamp: new Date().toISOString(),
+          status: 'success',
+          isCloudflare: true,
+          pending: true
+        })
+        
+        return true
+      }
+      
+      if (!pollResult.success) {
+        throw new Error(pollResult.error)
+      }
+      
+      // 部署成功
+      updateStep(6, '部署完成！')
+      deployStatus.value = 'success'
+      deployResult.value = {
+        url: `https://${projectName}.pages.dev`,
+        cloudflareUrl: pollResult.data.url,
+        repoInfo: repoInfo.value,
+        projectType: projectType.value,
+        deployedAt: new Date().toISOString(),
+        isCloudflare: true
+      }
+      
+      // 添加到历史记录
+      addToHistory({
+        url: repoUrl.value,
+        deployUrl: `https://${projectName}.pages.dev`,
+        repoName: `${parsed.username}/${parsed.repo}`,
+        timestamp: new Date().toISOString(),
+        status: 'success',
+        isCloudflare: true
+      })
+      
+      return true
+      
+    } catch (error) {
+      deployStatus.value = 'error'
+      deployError.value = error.message || '部署失败，请稍后重试'
+      
+      // 添加到历史记录（失败）
+      addToHistory({
+        url: repoUrl.value,
+        repoName: `${parsed.username}/${parsed.repo}`,
+        timestamp: new Date().toISOString(),
+        status: 'error',
+        error: error.message
+      })
+      
+      return false
+    }
+  }
+
   /**
    * 更新步骤状态
    * @param {number} step 
@@ -611,6 +1007,7 @@ export const useDeployStore = defineStore('deploy', () => {
     validateInput,
     startDeploy,
     startVercelDeploy,
+    startNetlifyDeploy,
     resetDeploy,
     clearInput,
     loadHistory,

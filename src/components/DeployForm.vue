@@ -18,43 +18,13 @@
         </template>
       </el-input>
       
-      <el-dropdown 
-        v-if="hasVercelToken" 
-        split-button 
-        type="primary"
-        size="large"
-        class="deploy-dropdown"
-        :loading="store.isDeploying"
-        :disabled="!canDeploy"
-        @click="handleDeploy"
-        @command="handleDeployCommand"
-      >
-        <template #icon>
-          <el-icon v-if="!store.isDeploying"><Promotion /></el-icon>
-        </template>
-        {{ store.isDeploying ? '部署中...' : '🚀 一键部署' }}
-        <template #dropdown>
-          <el-dropdown-menu>
-            <el-dropdown-item command="vercel">
-              <el-icon><Cloudy /></el-icon>
-              部署到 Vercel（真实部署）
-            </el-dropdown-item>
-            <el-dropdown-item command="simulate">
-              <el-icon><Monitor /></el-icon>
-              模拟部署（演示）
-            </el-dropdown-item>
-          </el-dropdown-menu>
-        </template>
-      </el-dropdown>
-      
       <el-button
-        v-else
         type="primary"
         size="large"
         class="deploy-btn"
         :loading="store.isDeploying"
         :disabled="!canDeploy"
-        @click="handleDeploy"
+        @click="handleNetlifyDeploy"
       >
         <template #icon>
           <el-icon v-if="!store.isDeploying"><Promotion /></el-icon>
@@ -95,14 +65,9 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
 import { useDeployStore } from '@/stores/deployStore.js'
-import { Link, CircleClose, Promotion, Warning, Clock, Cloudy, Monitor } from '@element-plus/icons-vue'
+import { Link, CircleClose, Promotion, Warning, Clock } from '@element-plus/icons-vue'
 
 const store = useDeployStore()
-
-// 检查是否有 Vercel Token
-const hasVercelToken = computed(() => {
-  return !!import.meta.env.VITE_VERCEL_TOKEN
-})
 const inputValue = ref('')
 
 // 示例地址
@@ -142,21 +107,10 @@ function useExample(example) {
   store.setRepoUrl(fullUrl)
 }
 
-// 开始部署
-async function handleDeploy() {
+// Netlify 部署
+async function handleNetlifyDeploy() {
   if (!canDeploy.value) return
-  await store.startDeploy()
-}
-
-// 处理部署命令
-async function handleDeployCommand(command) {
-  if (!canDeploy.value) return
-  
-  if (command === 'vercel') {
-    await store.startVercelDeploy()
-  } else {
-    await store.startDeploy()
-  }
+  await store.startNetlifyDeploy()
 }
 </script>
 

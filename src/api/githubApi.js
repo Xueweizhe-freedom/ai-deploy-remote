@@ -33,6 +33,7 @@ export async function getRepoInfo(username, repo) {
     return {
       success: true,
       data: {
+        id: response.data.id,
         name: response.data.name,
         fullName: response.data.full_name,
         description: response.data.description,

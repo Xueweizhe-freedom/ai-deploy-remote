@@ -57,6 +57,25 @@
         打开网站
       </el-button>
       <el-button 
+        v-if="store.deployResult.isNetlify"
+        size="large"
+        class="setup-btn"
+        @click="openNetlifyDashboard"
+      >
+        <el-icon><Cloudy /></el-icon>
+        Netlify 管理
+      </el-button>
+      <el-button 
+        v-else-if="store.deployResult.isVercel"
+        size="large"
+        class="setup-btn"
+        @click="openVercelDashboard"
+      >
+        <el-icon><Cloudy /></el-icon>
+        Vercel 管理
+      </el-button>
+      <el-button 
+        v-else
         size="large"
         class="setup-btn"
         @click="openSettings"
@@ -66,14 +85,47 @@
       </el-button>
     </div>
     
-    <!-- 提示信息 -->
-    <div v-if="!store.deployResult.pagesInfo?.enabled" class="setup-notice">
+    <!-- Netlify 提示 -->
+    <div v-if="store.deployResult.isNetlify" class="netlify-notice">
+      <el-icon><CircleCheck /></el-icon>
+      <div class="notice-content">
+        <p class="notice-title">部署成功</p>
+        <p class="notice-desc">
+          您的网站已部署到 Netlify，会自动绑定域名并启用 HTTPS。
+        </p>
+      </div>
+    </div>
+    
+    <!-- Vercel 提示 -->
+    <div v-else-if="store.deployResult.isVercel && !store.deployResult.pending" class="vercel-notice">
+      <el-icon><CircleCheck /></el-icon>
+      <div class="notice-content">
+        <p class="notice-title">Vercel 部署成功</p>
+        <p class="notice-desc">
+          您的网站已部署到 Vercel，会自动绑定域名并启用 HTTPS。
+        </p>
+      </div>
+    </div>
+    
+    <!-- GitHub Pages 提示 -->
+    <div v-else-if="!store.deployResult.pagesInfo?.enabled" class="setup-notice">
       <el-icon><InfoFilled /></el-icon>
       <div class="notice-content">
         <p class="notice-title">需要手动启用 GitHub Pages</p>
         <p class="notice-desc">
           首次部署需要在仓库设置中手动启用 GitHub Pages 功能。
           <a :href="store.deployResult.setupUrl" target="_blank">前往设置</a>
+        </p>
+      </div>
+    </div>
+    
+    <!-- Vercel 部署中提示 -->
+    <div v-if="store.deployResult.isVercel && store.deployResult.pending" class="vercel-pending">
+      <el-icon><Loading /></el-icon>
+      <div class="notice-content">
+        <p class="notice-title">Vercel 正在部署中</p>
+        <p class="notice-desc">
+          项目较大，部署需要较长时间。您可以点击"打开网站"查看进度，通常 2-5 分钟后可访问。
         </p>
       </div>
     </div>
@@ -96,7 +148,10 @@ import {
   View, 
   Setting, 
   InfoFilled,
-  Clock 
+  Clock,
+  Cloudy,
+  CircleCheck,
+  Loading
 } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 
@@ -146,6 +201,20 @@ function visitSite() {
 // 打开设置页面
 function openSettings() {
   window.open(store.deployResult.setupUrl, '_blank')
+}
+
+// 打开 Vercel 管理页面
+function openVercelDashboard() {
+  window.open(`https://vercel.com/dashboard`, '_blank')
+}
+
+// 打开 Netlify 管理页面
+function openNetlifyDashboard() {
+  if (store.deployResult.adminUrl) {
+    window.open(store.deployResult.adminUrl, '_blank')
+  } else {
+    window.open('https://app.netlify.com/', '_blank')
+  }
 }
 </script>
 

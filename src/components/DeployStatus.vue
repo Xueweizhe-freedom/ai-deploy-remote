@@ -49,7 +49,15 @@
         <el-icon><CircleCheck /></el-icon>
       </div>
       <h3 class="success-title">部署成功！</h3>
-      <p class="success-desc">您的网站已成功部署到 GitHub Pages</p>
+      <p class="success-desc">
+        {{ store.deployResult?.isVercel ? '您的网站已成功部署到 Vercel' : '您的网站已成功部署到 GitHub Pages' }}
+      </p>
+      <div v-if="store.deployResult?.isVercel" class="vercel-badge">
+        <el-tag type="success" effect="dark" size="large">
+          <el-icon><Cloudy /></el-icon>
+          Vercel 部署
+        </el-tag>
+      </div>
     </div>
     
     <!-- 后端项目不支持提示 -->
@@ -104,7 +112,7 @@
 
 <script setup>
 import { useDeployStore } from '@/stores/deployStore.js'
-import { Check, Loading, CircleCheck, CircleClose, Warning } from '@element-plus/icons-vue'
+import { Check, Loading, CircleCheck, CircleClose, Warning, Cloudy } from '@element-plus/icons-vue'
 
 const store = useDeployStore()
 

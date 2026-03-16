@@ -64,12 +64,7 @@ export async function createProject(name, repoUrl, repoId) {
         type: 'github',
         repo: `${repoInfo.owner}/${repoInfo.repo}`,
         repoId: repoId
-      },
-      buildCommand: 'npm run build',
-      outputDirectory: 'dist',
-      installCommand: 'npm install',
-      devCommand: 'npm run dev',
-      nodeVersion: '18.x'
+      }
     })
 
     return {
@@ -82,7 +77,10 @@ export async function createProject(name, repoUrl, repoId) {
     }
   } catch (error) {
     // 如果项目已存在，返回已有项目信息
-    if (error.response?.data?.error?.code === 'project_already_exists') {
+    const errorCode = error.response?.data?.error?.code
+    const errorMessage = error.response?.data?.error?.message || ''
+    
+    if (errorCode === 'project_already_exists' || errorMessage.includes('already exists')) {
       return {
         success: true,
         data: {
@@ -102,9 +100,10 @@ export async function createProject(name, repoUrl, repoId) {
  * @param {string} projectId - 项目 ID
  * @param {string} repoUrl - GitHub 仓库地址
  * @param {string} branch - 分支名
+ * @param {number} repoId - GitHub 仓库 ID
  * @returns {Promise<Object>}
  */
-export async function deployProject(projectId, repoUrl, branch = 'main') {
+export async function deployProject(projectId, repoUrl, branch = 'main', repoId = null) {
   try {
     const repoInfo = parseGitHubUrl(repoUrl)
     if (!repoInfo) {
@@ -114,23 +113,29 @@ export async function deployProject(projectId, repoUrl, branch = 'main') {
       }
     }
 
+    // 构建 gitSource
+    const gitSource = {
+      type: 'github',
+      repo: `${repoInfo.owner}/${repoInfo.repo}`,
+      ref: branch
+    }
+    
+    // repoId 是必需字段
+    if (!repoId) {
+      return {
+        success: false,
+        error: '缺少 GitHub 仓库 ID，无法部署到 Vercel'
+      }
+    }
+    
+    gitSource.repoId = String(repoId)
+    console.log('Vercel deploy gitSource:', gitSource)
+
     // 创建部署
     const response = await vercelClient.post('/v13/deployments', {
       name: projectId,
-      gitSource: {
-        type: 'github',
-        repo: `${repoInfo.owner}/${repoInfo.repo}`,
-        ref: branch,
-        repoId: repoInfo.repoId
-      },
-      target: 'production',
-      projectSettings: {
-        framework: 'vite',
-        buildCommand: 'npm run build',
-        outputDirectory: 'dist',
-        installCommand: 'npm install',
-        nodeVersion: '18.x'
-      }
+      gitSource: gitSource,
+      target: 'production'
     })
 
     return {
@@ -320,7 +325,7 @@ function handleApiError(error, defaultMessage) {
  * @param {number} maxAttempts 
  * @returns {Promise<Object>}
  */
-export async function pollDeploymentStatus(deploymentId, onProgress, maxAttempts = 60) {
+export async function pollDeploymentStatus(deploymentId, onProgress, maxAttempts = 120) {
   for (let i = 0; i < maxAttempts; i++) {
     const result = await getDeploymentStatus(deploymentId)
     
