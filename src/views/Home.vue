@@ -147,6 +147,7 @@
 </template>
 
 <script setup>
+import { h } from 'vue'
 import { Promotion, MagicStick, Lightning, Cpu, Link, Lock } from '@element-plus/icons-vue'
 import DeployForm from '@/components/DeployForm.vue'
 import DeployStatus from '@/components/DeployStatus.vue'
@@ -167,8 +168,6 @@ const GithubIcon = {
     ])
   }
 }
-
-import { h } from 'vue'
 </script>
 
 <style scoped lang="scss">
