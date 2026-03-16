@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "GitHub 前端项目一键部署工具",
   "type": "module",
+  "engines": {
+    "node": ">=18 <21"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
