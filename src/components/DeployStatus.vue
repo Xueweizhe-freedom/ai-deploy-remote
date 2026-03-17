@@ -55,23 +55,42 @@
         {{ getDeployPlatformText() }}
       </p>
       <div v-if="store.deployResult?.needsManualSetup" class="manual-setup-guide">
-        <el-alert
-          type="info"
-          :closable="false"
-          show-icon
-        >
-          <template #title>
-            请按以下步骤完成部署
-          </template>
-          <div class="setup-steps">
-            <p>1. 点击"Netlify 管理"按钮进入控制台</p>
-            <p>2. 点击"Link site to Git"关联 GitHub 仓库</p>
-            <p>3. 选择仓库：{{ store.deployResult?.repoInfo?.fullName }}</p>
-            <p>4. 构建命令：npm run build</p>
-            <p>5. 发布目录：dist</p>
-            <p>6. 点击"Deploy site"开始部署</p>
+        <div class="setup-card">
+          <div class="setup-header">
+            <el-icon class="setup-icon"><InfoFilled /></el-icon>
+            <span class="setup-title">请按以下步骤完成部署</span>
           </div>
-        </el-alert>
+          <div class="setup-steps">
+            <div class="step-item">
+              <span class="step-number">1</span>
+              <span class="step-text">点击"Netlify 管理"按钮进入控制台</span>
+            </div>
+            <div class="step-item">
+              <span class="step-number">2</span>
+              <span class="step-text">点击"Link site to Git"关联 GitHub 仓库</span>
+            </div>
+            <div class="step-item">
+              <span class="step-number">3</span>
+              <span class="step-text">选择仓库：<strong>{{ store.deployResult?.repoInfo?.fullName }}</strong></span>
+            </div>
+            <div class="step-item">
+              <span class="step-number">4</span>
+              <span class="step-text">构建命令：<code>npm run build</code></span>
+            </div>
+            <div class="step-item">
+              <span class="step-number">5</span>
+              <span class="step-text">发布目录：<code>dist</code></span>
+            </div>
+            <div class="step-item">
+              <span class="step-number">6</span>
+              <span class="step-text">点击"Deploy site"开始部署</span>
+            </div>
+          </div>
+          <div class="setup-tip">
+            <el-icon><Warning /></el-icon>
+            <span>部署完成后，您的网站将在几分钟内上线</span>
+          </div>
+        </div>
       </div>
       <div v-else-if="store.deployResult?.isVercel || store.deployResult?.isNetlify" class="platform-badge">
         <el-tag type="success" effect="dark" size="large">
@@ -133,7 +152,7 @@
 
 <script setup>
 import { useDeployStore } from '@/stores/deployStore.js'
-import { Check, Loading, CircleCheck, CircleClose, Warning, Cloudy } from '@element-plus/icons-vue'
+import { Check, Loading, CircleCheck, CircleClose, Warning, Cloudy, InfoFilled } from '@element-plus/icons-vue'
 
 const store = useDeployStore()
 
@@ -342,7 +361,101 @@ const deploySteps = [
 .success-desc {
   color: $text-secondary;
   font-size: $font-size-sm;
-  margin: 0;
+  margin: 0 0 20px;
+}
+
+// 手动配置引导
+.manual-setup-guide {
+  margin-top: 20px;
+  text-align: left;
+}
+
+.setup-card {
+  background: rgba(30, 30, 50, 0.8);
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  border-radius: $radius-lg;
+  padding: 20px;
+}
+
+.setup-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.setup-icon {
+  font-size: 20px;
+  color: $info-color;
+}
+
+.setup-title {
+  color: $text-primary;
+  font-size: $font-size-base;
+  font-weight: $font-weight-semibold;
+}
+
+.setup-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.step-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.step-number {
+  width: 24px;
+  height: 24px;
+  background: $gradient-primary;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 12px;
+  font-weight: $font-weight-bold;
+  flex-shrink: 0;
+}
+
+.step-text {
+  color: $text-secondary;
+  font-size: $font-size-sm;
+  line-height: 1.6;
+  padding-top: 2px;
+  
+  strong {
+    color: $primary-light;
+  }
+  
+  code {
+    background: rgba(99, 102, 241, 0.2);
+    padding: 2px 8px;
+    border-radius: $radius-sm;
+    color: $primary-light;
+    font-family: $font-family-mono;
+    font-size: 12px;
+  }
+}
+
+.setup-tip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  color: $warning-color;
+  font-size: $font-size-sm;
+  
+  .el-icon {
+    font-size: 16px;
+  }
 }
 
 // 错误状态
