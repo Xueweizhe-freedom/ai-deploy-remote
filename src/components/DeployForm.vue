@@ -66,6 +66,7 @@
 import { ref, computed, watch } from 'vue'
 import { useDeployStore } from '@/stores/deployStore.js'
 import { Link, CircleClose, Promotion, Warning, Clock } from '@element-plus/icons-vue'
+import { ElMessageBox } from 'element-plus'
 
 const store = useDeployStore()
 const inputValue = ref('')
@@ -122,11 +123,16 @@ async function handleNetlifyDeploy() {
   // 没有 token，启动 OAuth 流程
   try {
     const response = await fetch(`http://localhost:3000/auth/netlify?repoUrl=${encodeURIComponent(store.repoUrl)}`)
+    
+    if (!response.ok) {
+      throw new Error('后端服务未启动')
+    }
+    
     const data = await response.json()
     
     if (data.authUrl) {
       // 打开授权窗口
-      const authWindow = window.open(
+      window.open(
         data.authUrl,
         'Netlify OAuth',
         'width=800,height=600,scrollbars=yes'
@@ -137,8 +143,32 @@ async function handleNetlifyDeploy() {
     }
   } catch (error) {
     console.error('启动授权失败:', error)
-    // 降级到手动部署
-    await store.startNetlifyDeploy()
+    
+    // 提示用户需要先启动后端服务
+    if (error.message === '后端服务未启动' || error.message.includes('fetch')) {
+      ElMessageBox.alert(
+        '自动部署需要启动后端服务。<br><br>' +
+        '请在终端运行以下命令启动后端：<br>' +
+        '<code>cd server && npm run dev</code><br><br>' +
+        '或者继续使用手动部署模式。',
+        '后端服务未启动',
+        {
+          confirmButtonText: '继续手动部署',
+          cancelButtonText: '取消',
+          showCancelButton: true,
+          dangerouslyUseHTMLString: true,
+          callback: (action) => {
+            if (action === 'confirm') {
+              // 降级到手动部署
+              store.startNetlifyDeploy()
+            }
+          }
+        }
+      )
+    } else {
+      // 其他错误，降级到手动部署
+      await store.startNetlifyDeploy()
+    }
   }
 }
 
