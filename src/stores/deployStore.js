@@ -591,15 +591,27 @@ export const useDeployStore = defineStore('deploy', () => {
       let attempts = 0
       const maxAttempts = 30
       
-      while (attempts < maxAttempts && deployStatus_result.status === 'building') {
+      while (attempts < maxAttempts) {
         await delay(5000)
         deployStatus_result = await netlifyApi.getDeployStatus(siteId)
         attempts++
         
-        if (deployStatus_result.status === 'building') {
+        if (deployStatus_result.status === 'building' || deployStatus_result.status === 'processing') {
           stepMessage.value = `正在构建中... (${attempts}/${maxAttempts})`
           deployProgress.value = Math.min(50 + (attempts / maxAttempts) * 40, 90)
+        } else if (deployStatus_result.status === 'ready') {
+          // 部署成功
+          break
+        } else if (deployStatus_result.status === 'error') {
+          throw new Error('Netlify 构建失败: ' + deployStatus_result.message)
+        } else {
+          // 其他状态继续等待
+          stepMessage.value = `等待中... (${attempts}/${maxAttempts})`
         }
+      }
+      
+      if (deployStatus_result.status !== 'ready') {
+        throw new Error('部署超时，请稍后手动检查 Netlify 控制台')
       }
       
       // 步骤 6: 部署完成
