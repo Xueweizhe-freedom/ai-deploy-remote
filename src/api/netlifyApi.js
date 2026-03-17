@@ -43,8 +43,20 @@ class NetlifyApi {
       const site = siteResponse.data
       const siteId = site.id
       
-      // 步骤2: 关联 GitHub 仓库（使用 repo 配置）
+      // 步骤2: 关联 GitHub 仓库并触发部署
       try {
+        // 先更新站点配置
+        await this.client.put(`/sites/${siteId}`, {
+          build_settings: {
+            cmd: 'npm run build',
+            dir: 'dist',
+            env: {
+              NODE_VERSION: '18'
+            }
+          }
+        })
+        
+        // 然后关联 GitHub 仓库
         await this.client.put(`/sites/${siteId}`, {
           repo: {
             provider: 'github',
@@ -57,9 +69,15 @@ class NetlifyApi {
             }
           }
         })
+        
+        console.log('GitHub 仓库关联成功')
       } catch (repoError) {
-        console.warn('关联 GitHub 仓库失败:', repoError.message)
-        // 如果关联失败，仍然返回站点信息，让用户手动配置
+        console.error('关联 GitHub 仓库失败:', repoError.response?.data || repoError.message)
+        // 返回错误，让上层处理
+        return {
+          success: false,
+          error: '关联 GitHub 仓库失败: ' + (repoError.response?.data?.message || repoError.message)
+        }
       }
       
       // 构建站点 URL

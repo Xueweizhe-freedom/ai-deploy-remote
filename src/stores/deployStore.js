@@ -584,10 +584,14 @@ export const useDeployStore = defineStore('deploy', () => {
       const siteId = siteResult.siteId
       const siteUrl = siteResult.url
       
-      // 步骤 4-5: 等待构建完成
-      updateStep(4, '正在构建中，请稍候...')
+      // 步骤 4: 等待 Netlify 触发构建
+      updateStep(4, '正在触发构建...')
+      await delay(10000)  // 等待10秒让 Netlify 触发构建
       
-      let deployStatus_result = { status: 'building' }
+      // 步骤 5: 等待构建完成
+      updateStep(5, '正在构建中，请稍候...')
+      
+      let deployStatus_result = { status: 'pending' }
       let attempts = 0
       const maxAttempts = 60  // 最多等待5分钟
       
@@ -596,17 +600,22 @@ export const useDeployStore = defineStore('deploy', () => {
         deployStatus_result = await netlifyApi.getDeployStatus(siteId)
         attempts++
         
-        if (deployStatus_result.status === 'building' || deployStatus_result.status === 'processing') {
+        console.log(`构建状态检查 ${attempts}/${maxAttempts}:`, deployStatus_result.status)
+        
+        if (deployStatus_result.status === 'pending') {
+          stepMessage.value = `等待构建开始... (${attempts}/${maxAttempts})`
+          deployProgress.value = Math.min(40 + (attempts / maxAttempts) * 10, 50)
+        } else if (deployStatus_result.status === 'building' || deployStatus_result.status === 'processing') {
           stepMessage.value = `正在构建中... (${attempts}/${maxAttempts})`
           deployProgress.value = Math.min(50 + (attempts / maxAttempts) * 40, 90)
         } else if (deployStatus_result.status === 'ready') {
           // 部署成功
           break
         } else if (deployStatus_result.status === 'error') {
-          throw new Error('构建失败: ' + deployStatus_result.message)
+          throw new Error('Netlify 构建失败: ' + deployStatus_result.message)
         } else {
           // 其他状态继续等待
-          stepMessage.value = `等待中... (${attempts}/${maxAttempts})`
+          stepMessage.value = `等待中... 状态: ${deployStatus_result.status} (${attempts}/${maxAttempts})`
         }
       }
       
