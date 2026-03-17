@@ -15,7 +15,7 @@ class NetlifyApi {
     })
   }
 
-  // 创建新站点
+  // 创建新站点（不关联 GitHub，仅创建空站点）
   async createSite(name, repoUrl, branch = 'main') {
     try {
       // 从 GitHub URL 提取 owner 和 repo
@@ -26,20 +26,9 @@ class NetlifyApi {
       const [, owner, repo] = match
       const cleanRepo = repo.replace(/\.git$/, '')
 
-      // 创建站点配置
+      // 创建站点配置（简化版，不自动关联 GitHub）
       const siteConfig = {
         name: `${cleanRepo}-${Date.now()}`,
-        repo: {
-          provider: 'github',
-          repo: `${owner}/${cleanRepo}`,
-          private: false,
-          branch: branch,
-          cmd: 'npm run build',
-          dir: 'dist',
-          env: {
-            NODE_VERSION: '18'
-          }
-        },
         build_settings: {
           cmd: 'npm run build',
           dir: 'dist',
@@ -50,12 +39,17 @@ class NetlifyApi {
       }
 
       const response = await this.client.post('/sites', siteConfig)
+      const site = response.data
+      
+      // 构建站点 URL
+      const siteUrl = site.ssl_url || site.url || `https://${site.name}.netlify.app`
+      
       return {
         success: true,
-        siteId: response.data.id,
-        siteName: response.data.name,
-        url: response.data.ssl_url || response.data.url,
-        adminUrl: response.data.admin_url
+        siteId: site.id,
+        siteName: site.name,
+        url: siteUrl,
+        adminUrl: site.admin_url
       }
     } catch (error) {
       console.error('创建站点失败:', error)
