@@ -50,12 +50,12 @@
       </div>
       <h3 class="success-title">部署成功！</h3>
       <p class="success-desc">
-        {{ store.deployResult?.isVercel ? '您的网站已成功部署到 Vercel' : '您的网站已成功部署到 GitHub Pages' }}
+        {{ getDeployPlatformText() }}
       </p>
-      <div v-if="store.deployResult?.isVercel" class="vercel-badge">
+      <div v-if="store.deployResult?.isVercel || store.deployResult?.isNetlify" class="platform-badge">
         <el-tag type="success" effect="dark" size="large">
           <el-icon><Cloudy /></el-icon>
-          Vercel 部署
+          {{ store.deployResult?.isNetlify ? 'Netlify 部署' : 'Vercel 部署' }}
         </el-tag>
       </div>
     </div>
@@ -115,6 +115,17 @@ import { useDeployStore } from '@/stores/deployStore.js'
 import { Check, Loading, CircleCheck, CircleClose, Warning, Cloudy } from '@element-plus/icons-vue'
 
 const store = useDeployStore()
+
+// 获取部署平台文本
+function getDeployPlatformText() {
+  if (store.deployResult?.isNetlify) {
+    return '您的网站已成功部署到 Netlify'
+  }
+  if (store.deployResult?.isVercel) {
+    return '您的网站已成功部署到 Vercel'
+  }
+  return '您的网站已成功部署到 GitHub Pages'
+}
 
 // 部署步骤定义
 const deploySteps = [
