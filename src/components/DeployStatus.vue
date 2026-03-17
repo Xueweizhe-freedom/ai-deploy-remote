@@ -73,13 +73,25 @@
             <div class="step-item">
               <span class="step-number">2</span>
               <span class="step-text">
-                点击 <strong>"Link site to Git"</strong> 关联 GitHub 仓库
+                点击左侧 <strong>"Project configuration"</strong>（项目配置）
               </span>
             </div>
             <div class="step-item">
               <span class="step-number">3</span>
               <span class="step-text">
-                选择仓库：
+                选择 <strong>"Build & deploy"</strong>（构建和部署）
+              </span>
+            </div>
+            <div class="step-item">
+              <span class="step-number">4</span>
+              <span class="step-text">
+                点击 <strong>"Link site to Git"</strong> 或 <strong>"Configure"</strong>
+              </span>
+            </div>
+            <div class="step-item">
+              <span class="step-number">5</span>
+              <span class="step-text">
+                选择 GitHub，然后选择仓库：
                 <a :href="`https://github.com/${store.deployResult?.repoInfo?.fullName}`" target="_blank" class="step-link">
                   {{ store.deployResult?.repoInfo?.fullName }}
                   <el-icon><Link /></el-icon>
@@ -87,9 +99,9 @@
               </span>
             </div>
             <div class="step-item">
-              <span class="step-number">4</span>
+              <span class="step-number">6</span>
               <span class="step-text">
-                构建命令：<code>npm run build</code>
+                配置构建命令：<code>npm run build</code>
                 <el-button 
                   link 
                   type="primary" 
@@ -102,9 +114,9 @@
               </span>
             </div>
             <div class="step-item">
-              <span class="step-number">5</span>
+              <span class="step-number">7</span>
               <span class="step-text">
-                发布目录：<code>dist</code>
+                配置发布目录：<code>dist</code>
                 <el-button 
                   link 
                   type="primary" 
@@ -117,9 +129,9 @@
               </span>
             </div>
             <div class="step-item">
-              <span class="step-number">6</span>
+              <span class="step-number">8</span>
               <span class="step-text">
-                点击 <strong>"Deploy site"</strong> 开始部署
+                点击 <strong>"Deploy site"</strong> 或 <strong>"Save"</strong> 开始部署
               </span>
             </div>
           </div>
