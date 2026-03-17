@@ -89,20 +89,13 @@ app.post('/api/deploy', async (req, res) => {
     }
     const [, owner, repo] = match
     const cleanRepo = repo.replace(/\.git$/, '')
+    const siteName = `${cleanRepo}-${Date.now().toString().slice(-6)}`
     
-    // 创建站点
+    console.log('创建站点:', { owner, cleanRepo, siteName })
+    
+    // 创建站点（不直接关联 GitHub，先创建空站点）
     const siteResponse = await axios.post('https://api.netlify.com/api/v1/sites', {
-      name: `${cleanRepo}-${Date.now()}`,
-      repo: {
-        provider: 'github',
-        repo_path: `${owner}/${cleanRepo}`,
-        repo_branch: 'main',
-        cmd: buildCommand,
-        dir: publishDir,
-        env: {
-          NODE_VERSION: '18'
-        }
-      },
+      name: siteName,
       build_settings: {
         cmd: buildCommand,
         dir: publishDir,
@@ -118,18 +111,42 @@ app.post('/api/deploy', async (req, res) => {
     })
     
     const site = siteResponse.data
+    console.log('站点创建成功:', site.id, site.name)
+    
+    // 尝试关联 GitHub 仓库
+    try {
+      await axios.put(`https://api.netlify.com/api/v1/sites/${site.id}`, {
+        repo: {
+          provider: 'github',
+          repo_path: `${owner}/${cleanRepo}`,
+          repo_branch: 'main',
+          cmd: buildCommand,
+          dir: publishDir
+        }
+      }, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+      console.log('GitHub 关联成功')
+    } catch (linkError) {
+      console.error('GitHub 关联失败:', linkError.response?.data || linkError.message)
+      // 关联失败不影响返回站点信息，用户可以在控制台手动关联
+    }
     
     res.json({
       success: true,
       siteId: site.id,
       siteName: site.name,
       url: `https://${site.name}.netlify.app`,
-      adminUrl: `https://app.netlify.com/sites/${site.name}/overview`
+      adminUrl: `https://app.netlify.com/sites/${site.name}/overview`,
+      repoPath: `${owner}/${cleanRepo}`
     })
   } catch (error) {
     console.error('部署失败:', error.response?.data || error.message)
     res.status(500).json({
-      error: error.response?.data?.message || '部署失败'
+      error: error.response?.data?.message || error.message || '部署失败'
     })
   }
 })
