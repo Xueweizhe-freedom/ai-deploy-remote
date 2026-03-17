@@ -581,27 +581,49 @@ export const useDeployStore = defineStore('deploy', () => {
         throw new Error(siteResult.error)
       }
       
-      // 步骤 4: 站点创建成功
-      updateStep(4, '站点创建成功')
-      deployProgress.value = 80
+      const siteId = siteResult.siteId
+      const siteUrl = siteResult.url
       
-      // 步骤 5-6: 完成
-      await delay(500)
-      updateStep(5, '完成')
-      deployProgress.value = 100
-      await delay(300)
+      // 步骤 4-5: 等待构建完成
+      updateStep(4, '正在构建中，请稍候...')
       
-      // 步骤 6: 部署完成（需要用户手动配置）
-      updateStep(6, '请在 Netlify 控制台完成 GitHub 集成配置')
+      let deployStatus_result = { status: 'building' }
+      let attempts = 0
+      const maxAttempts = 60  // 最多等待5分钟
+      
+      while (attempts < maxAttempts) {
+        await delay(5000)  // 每5秒检查一次
+        deployStatus_result = await netlifyApi.getDeployStatus(siteId)
+        attempts++
+        
+        if (deployStatus_result.status === 'building' || deployStatus_result.status === 'processing') {
+          stepMessage.value = `正在构建中... (${attempts}/${maxAttempts})`
+          deployProgress.value = Math.min(50 + (attempts / maxAttempts) * 40, 90)
+        } else if (deployStatus_result.status === 'ready') {
+          // 部署成功
+          break
+        } else if (deployStatus_result.status === 'error') {
+          throw new Error('构建失败: ' + deployStatus_result.message)
+        } else {
+          // 其他状态继续等待
+          stepMessage.value = `等待中... (${attempts}/${maxAttempts})`
+        }
+      }
+      
+      if (deployStatus_result.status !== 'ready') {
+        throw new Error('构建超时，请稍后手动检查 Netlify 控制台')
+      }
+      
+      // 步骤 6: 部署完成
+      updateStep(6, '部署完成！')
       deployStatus.value = 'success'
       deployResult.value = {
-        url: siteResult.url,
+        url: siteUrl,
         adminUrl: siteResult.adminUrl,
         repoInfo: repoInfo.value,
         projectType: projectType.value,
         deployedAt: new Date().toISOString(),
-        isNetlify: true,
-        needsManualSetup: true
+        isNetlify: true
       }
       
       // 添加到历史记录

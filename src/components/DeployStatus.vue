@@ -48,31 +48,11 @@
       <div class="success-icon">
         <el-icon><CircleCheck /></el-icon>
       </div>
-      <h3 class="success-title">
-        {{ store.deployResult?.needsManualSetup ? '站点创建成功' : '部署成功！' }}
-      </h3>
+      <h3 class="success-title">部署成功！</h3>
       <p class="success-desc">
         {{ getDeployPlatformText() }}
       </p>
-      <div v-if="store.deployResult?.needsManualSetup" class="manual-setup-notice">
-        <el-alert
-          type="warning"
-          :closable="false"
-          show-icon
-        >
-          <template #title>
-            需要手动配置
-          </template>
-          <div class="setup-steps">
-            <p>1. 点击"Netlify 管理"进入控制台</p>
-            <p>2. 在 Site settings → Build & deploy 中</p>
-            <p>3. 点击"Link site to Git"关联 GitHub 仓库</p>
-            <p>4. 配置构建命令：npm run build</p>
-            <p>5. 配置发布目录：dist</p>
-          </div>
-        </el-alert>
-      </div>
-      <div v-else-if="store.deployResult?.isVercel || store.deployResult?.isNetlify" class="platform-badge">
+      <div v-if="store.deployResult?.isVercel || store.deployResult?.isNetlify" class="platform-badge">
         <el-tag type="success" effect="dark" size="large">
           <el-icon><Cloudy /></el-icon>
           {{ store.deployResult?.isNetlify ? 'Netlify 部署' : 'Vercel 部署' }}
@@ -138,11 +118,8 @@ const store = useDeployStore()
 
 // 获取部署平台文本
 function getDeployPlatformText() {
-  if (store.deployResult?.needsManualSetup) {
-    return 'Netlify 站点已创建，请按下方步骤完成 GitHub 集成配置'
-  }
   if (store.deployResult?.isNetlify) {
-    return '您的网站已成功部署到 Netlify'
+    return '您的网站已成功部署到 Netlify，现在可以访问了'
   }
   if (store.deployResult?.isVercel) {
     return '您的网站已成功部署到 Vercel'

@@ -15,7 +15,7 @@ class NetlifyApi {
     })
   }
 
-  // 创建新站点（不关联 GitHub，仅创建空站点）
+  // 创建新站点并关联 GitHub 仓库
   async createSite(name, repoUrl, branch = 'main') {
     try {
       // 从 GitHub URL 提取 owner 和 repo
@@ -25,10 +25,11 @@ class NetlifyApi {
       }
       const [, owner, repo] = match
       const cleanRepo = repo.replace(/\.git$/, '')
+      const siteName = `${cleanRepo}-${Date.now()}`
 
-      // 创建站点配置（简化版，不自动关联 GitHub）
+      // 步骤1: 创建站点
       const siteConfig = {
-        name: `${cleanRepo}-${Date.now()}`,
+        name: siteName,
         build_settings: {
           cmd: 'npm run build',
           dir: 'dist',
@@ -38,18 +39,38 @@ class NetlifyApi {
         }
       }
 
-      const response = await this.client.post('/sites', siteConfig)
-      const site = response.data
+      const siteResponse = await this.client.post('/sites', siteConfig)
+      const site = siteResponse.data
+      const siteId = site.id
+      
+      // 步骤2: 关联 GitHub 仓库（使用 repo 配置）
+      try {
+        await this.client.put(`/sites/${siteId}`, {
+          repo: {
+            provider: 'github',
+            repo_path: `${owner}/${cleanRepo}`,
+            repo_branch: branch,
+            cmd: 'npm run build',
+            dir: 'dist',
+            env: {
+              NODE_VERSION: '18'
+            }
+          }
+        })
+      } catch (repoError) {
+        console.warn('关联 GitHub 仓库失败:', repoError.message)
+        // 如果关联失败，仍然返回站点信息，让用户手动配置
+      }
       
       // 构建站点 URL
-      const siteUrl = site.ssl_url || site.url || `https://${site.name}.netlify.app`
+      const siteUrl = `https://${siteName}.netlify.app`
       
       return {
         success: true,
-        siteId: site.id,
-        siteName: site.name,
+        siteId: siteId,
+        siteName: siteName,
         url: siteUrl,
-        adminUrl: site.admin_url
+        adminUrl: `https://app.netlify.com/sites/${siteName}/overview`
       }
     } catch (error) {
       console.error('创建站点失败:', error)
