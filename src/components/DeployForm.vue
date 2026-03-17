@@ -107,10 +107,53 @@ function useExample(example) {
   store.setRepoUrl(fullUrl)
 }
 
-// Netlify 部署
+// Netlify 部署（OAuth 流程）
 async function handleNetlifyDeploy() {
   if (!canDeploy.value) return
-  await store.startNetlifyDeploy()
+  
+  // 检查是否已授权
+  const token = localStorage.getItem('netlify_token')
+  if (token) {
+    // 已有 token，直接部署
+    await store.startNetlifyDeployWithToken(token)
+    return
+  }
+  
+  // 没有 token，启动 OAuth 流程
+  try {
+    const response = await fetch(`http://localhost:3000/auth/netlify?repoUrl=${encodeURIComponent(store.repoUrl)}`)
+    const data = await response.json()
+    
+    if (data.authUrl) {
+      // 打开授权窗口
+      const authWindow = window.open(
+        data.authUrl,
+        'Netlify OAuth',
+        'width=800,height=600,scrollbars=yes'
+      )
+      
+      // 监听授权完成消息
+      window.addEventListener('message', handleOAuthMessage)
+    }
+  } catch (error) {
+    console.error('启动授权失败:', error)
+    // 降级到手动部署
+    await store.startNetlifyDeploy()
+  }
+}
+
+// 处理 OAuth 回调消息
+function handleOAuthMessage(event) {
+  if (event.origin !== window.location.origin) return
+  
+  if (event.data.type === 'netlify-oauth-success') {
+    const { token } = event.data
+    localStorage.setItem('netlify_token', token)
+    window.removeEventListener('message', handleOAuthMessage)
+    
+    // 自动开始部署
+    store.startNetlifyDeployWithToken(token)
+  }
 }
 </script>
 

@@ -635,6 +635,187 @@ export const useDeployStore = defineStore('deploy', () => {
   }
 
   /**
+   * 使用 OAuth Token 进行 Netlify 自动部署
+   * @param {string} token - Netlify OAuth Token
+   * @returns {Promise<boolean>}
+   */
+  async function startNetlifyDeployWithToken(token) {
+    // 验证输入
+    if (!validateInput()) {
+      deployStatus.value = 'error'
+      return false
+    }
+    
+    // 解析仓库地址
+    const parsed = parseRepoUrl(repoUrl.value)
+    if (!parsed) {
+      inputError.value = '无法解析仓库地址'
+      deployStatus.value = 'error'
+      return false
+    }
+    
+    // 记录请求
+    recordRequest()
+    
+    // 重置状态
+    deployStatus.value = 'validating'
+    currentStep.value = 1
+    totalSteps.value = 6
+    deployProgress.value = 0
+    deployError.value = ''
+    deployResult.value = null
+    
+    try {
+      // 步骤 1: 解析仓库
+      updateStep(1, '解析仓库地址...')
+      await delay(300)
+      
+      // 步骤 2: 获取仓库信息
+      deployStatus.value = 'parsing'
+      updateStep(2, '获取仓库信息...')
+      
+      const checkResult = await checkDeployability(parsed.username, parsed.repo)
+      
+      if (!checkResult.success) {
+        throw new Error(checkResult.error)
+      }
+      
+      repoInfo.value = checkResult.data.repo
+      projectType.value = checkResult.data.projectType
+      pagesInfo.value = checkResult.data.pages
+      
+      // 检查是否为后端项目
+      if (projectType.value && projectType.value.isBackend) {
+        deployStatus.value = 'error'
+        deployError.value = '检测到后端项目，不支持部署'
+        return false
+      }
+      
+      // 检查是否可部署
+      if (projectType.value && !projectType.value.deployable) {
+        deployStatus.value = 'error'
+        deployError.value = projectType.value.reason || '该项目类型不支持部署'
+        return false
+      }
+      
+      await delay(500)
+      
+      // 步骤 3: 调用后端 API 创建站点并部署
+      deployStatus.value = 'deploying'
+      updateStep(3, '创建 Netlify 站点...')
+      
+      const deployResponse = await fetch('http://localhost:3000/api/deploy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          token,
+          repoUrl: repoUrl.value,
+          buildCommand: 'npm run build',
+          publishDir: 'dist'
+        })
+      })
+      
+      if (!deployResponse.ok) {
+        const error = await deployResponse.json()
+        throw new Error(error.error || '部署失败')
+      }
+      
+      const result = await deployResponse.json()
+      
+      updateStep(4, '站点创建成功，正在关联 GitHub...')
+      deployProgress.value = 50
+      await delay(1000)
+      
+      updateStep(5, '配置构建设置...')
+      deployProgress.value = 70
+      await delay(1000)
+      
+      // 步骤 6: 等待部署完成
+      updateStep(6, '等待构建完成...')
+      deployProgress.value = 80
+      
+      // 轮询部署状态
+      const finalStatus = await pollNetlifyDeployStatus(token, result.siteId)
+      
+      if (finalStatus === 'ready') {
+        deployStatus.value = 'success'
+        deployProgress.value = 100
+        deployResult.value = {
+          url: result.url,
+          adminUrl: result.adminUrl,
+          repoInfo: repoInfo.value,
+          projectType: projectType.value,
+          deployedAt: new Date().toISOString(),
+          isNetlify: true,
+          needsManualSetup: false
+        }
+        
+        // 添加到历史记录
+        addToHistory({
+          url: repoUrl.value,
+          deployUrl: result.url,
+          repoName: `${parsed.username}/${parsed.repo}`,
+          timestamp: new Date().toISOString(),
+          status: 'success',
+          isNetlify: true
+        })
+        
+        return true
+      } else {
+        throw new Error('部署超时')
+      }
+      
+    } catch (error) {
+      deployStatus.value = 'error'
+      deployError.value = error.message || '部署失败，请稍后重试'
+      
+      // 添加到历史记录（失败）
+      addToHistory({
+        url: repoUrl.value,
+        repoName: `${parsed.username}/${parsed.repo}`,
+        timestamp: new Date().toISOString(),
+        status: 'error',
+        error: error.message
+      })
+      
+      return false
+    }
+  }
+
+  /**
+   * 轮询 Netlify 部署状态
+   * @param {string} token 
+   * @param {string} siteId 
+   * @returns {Promise<string>}
+   */
+  async function pollNetlifyDeployStatus(token, siteId) {
+    const maxAttempts = 60
+    
+    for (let i = 0; i < maxAttempts; i++) {
+      try {
+        const response = await fetch(`http://localhost:3000/api/deploy-status?token=${token}&siteId=${siteId}`)
+        const data = await response.json()
+        
+        if (data.status === 'ready') {
+          return 'ready'
+        } else if (data.status === 'error') {
+          throw new Error('构建失败')
+        }
+        
+        // 更新进度
+        deployProgress.value = 80 + Math.floor((i / maxAttempts) * 20)
+        
+        await delay(5000)
+      } catch (error) {
+        console.error('轮询状态失败:', error)
+        await delay(5000)
+      }
+    }
+    
+    return 'timeout'
+  }
+
+  /**
    * 使用 Cloudflare Pages 进行真实部署
    * @returns {Promise<boolean>}
    */
@@ -999,6 +1180,7 @@ export const useDeployStore = defineStore('deploy', () => {
     startDeploy,
     startVercelDeploy,
     startNetlifyDeploy,
+    startNetlifyDeployWithToken,
     resetDeploy,
     clearInput,
     loadHistory,
