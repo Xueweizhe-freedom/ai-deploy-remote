@@ -63,27 +63,64 @@
           <div class="setup-steps">
             <div class="step-item">
               <span class="step-number">1</span>
-              <span class="step-text">点击"Netlify 管理"按钮进入控制台</span>
+              <span class="step-text">
+                <a :href="store.deployResult?.adminUrl" target="_blank" class="step-link">
+                  点击进入 Netlify 控制台
+                  <el-icon><Link /></el-icon>
+                </a>
+              </span>
             </div>
             <div class="step-item">
               <span class="step-number">2</span>
-              <span class="step-text">点击"Link site to Git"关联 GitHub 仓库</span>
+              <span class="step-text">
+                点击 <strong>"Link site to Git"</strong> 关联 GitHub 仓库
+              </span>
             </div>
             <div class="step-item">
               <span class="step-number">3</span>
-              <span class="step-text">选择仓库：<strong>{{ store.deployResult?.repoInfo?.fullName }}</strong></span>
+              <span class="step-text">
+                选择仓库：
+                <a :href="`https://github.com/${store.deployResult?.repoInfo?.fullName}`" target="_blank" class="step-link">
+                  {{ store.deployResult?.repoInfo?.fullName }}
+                  <el-icon><Link /></el-icon>
+                </a>
+              </span>
             </div>
             <div class="step-item">
               <span class="step-number">4</span>
-              <span class="step-text">构建命令：<code>npm run build</code></span>
+              <span class="step-text">
+                构建命令：<code>npm run build</code>
+                <el-button 
+                  link 
+                  type="primary" 
+                  size="small"
+                  class="copy-btn"
+                  @click="copyText('npm run build')"
+                >
+                  复制
+                </el-button>
+              </span>
             </div>
             <div class="step-item">
               <span class="step-number">5</span>
-              <span class="step-text">发布目录：<code>dist</code></span>
+              <span class="step-text">
+                发布目录：<code>dist</code>
+                <el-button 
+                  link 
+                  type="primary" 
+                  size="small"
+                  class="copy-btn"
+                  @click="copyText('dist')"
+                >
+                  复制
+                </el-button>
+              </span>
             </div>
             <div class="step-item">
               <span class="step-number">6</span>
-              <span class="step-text">点击"Deploy site"开始部署</span>
+              <span class="step-text">
+                点击 <strong>"Deploy site"</strong> 开始部署
+              </span>
             </div>
           </div>
           <div class="setup-tip">
@@ -152,9 +189,19 @@
 
 <script setup>
 import { useDeployStore } from '@/stores/deployStore.js'
-import { Check, Loading, CircleCheck, CircleClose, Warning, Cloudy, InfoFilled } from '@element-plus/icons-vue'
+import { Check, Loading, CircleCheck, CircleClose, Warning, Cloudy, InfoFilled, Link } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
 
 const store = useDeployStore()
+
+// 复制文本到剪贴板
+function copyText(text) {
+  navigator.clipboard.writeText(text).then(() => {
+    ElMessage.success(`已复制: ${text}`)
+  }).catch(() => {
+    ElMessage.error('复制失败')
+  })
+}
 
 // 获取部署平台文本
 function getDeployPlatformText() {
@@ -428,6 +475,10 @@ const deploySteps = [
   font-size: $font-size-sm;
   line-height: 1.6;
   padding-top: 2px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
   
   strong {
     color: $primary-light;
@@ -441,6 +492,29 @@ const deploySteps = [
     font-family: $font-family-mono;
     font-size: 12px;
   }
+}
+
+.step-link {
+  color: $primary-light;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: all $transition-fast;
+  
+  &:hover {
+    color: $primary-color;
+    text-decoration: underline;
+  }
+  
+  .el-icon {
+    font-size: 14px;
+  }
+}
+
+.copy-btn {
+  margin-left: 4px;
+  font-size: 12px;
 }
 
 .setup-tip {
