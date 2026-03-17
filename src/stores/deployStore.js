@@ -584,47 +584,16 @@ export const useDeployStore = defineStore('deploy', () => {
       const siteId = siteResult.siteId
       const siteUrl = siteResult.url
       
-      // 步骤 4: 等待 Netlify 触发构建
-      updateStep(4, '正在触发构建...')
-      await delay(10000)  // 等待10秒让 Netlify 触发构建
+      // 步骤 4-6: 站点创建成功，需要手动配置
+      updateStep(4, 'Netlify 站点创建成功')
+      deployProgress.value = 80
+      await delay(300)
       
-      // 步骤 5: 等待构建完成
-      updateStep(5, '正在构建中，请稍候...')
+      updateStep(5, '请完成 GitHub 集成')
+      deployProgress.value = 90
+      await delay(300)
       
-      let deployStatus_result = { status: 'pending' }
-      let attempts = 0
-      const maxAttempts = 60  // 最多等待5分钟
-      
-      while (attempts < maxAttempts) {
-        await delay(5000)  // 每5秒检查一次
-        deployStatus_result = await netlifyApi.getDeployStatus(siteId)
-        attempts++
-        
-        console.log(`构建状态检查 ${attempts}/${maxAttempts}:`, deployStatus_result.status)
-        
-        if (deployStatus_result.status === 'pending') {
-          stepMessage.value = `等待构建开始... (${attempts}/${maxAttempts})`
-          deployProgress.value = Math.min(40 + (attempts / maxAttempts) * 10, 50)
-        } else if (deployStatus_result.status === 'building' || deployStatus_result.status === 'processing') {
-          stepMessage.value = `正在构建中... (${attempts}/${maxAttempts})`
-          deployProgress.value = Math.min(50 + (attempts / maxAttempts) * 40, 90)
-        } else if (deployStatus_result.status === 'ready') {
-          // 部署成功
-          break
-        } else if (deployStatus_result.status === 'error') {
-          throw new Error('Netlify 构建失败: ' + deployStatus_result.message)
-        } else {
-          // 其他状态继续等待
-          stepMessage.value = `等待中... 状态: ${deployStatus_result.status} (${attempts}/${maxAttempts})`
-        }
-      }
-      
-      if (deployStatus_result.status !== 'ready') {
-        throw new Error('构建超时，请稍后手动检查 Netlify 控制台')
-      }
-      
-      // 步骤 6: 部署完成
-      updateStep(6, '部署完成！')
+      updateStep(6, '请在 Netlify 控制台关联 GitHub 仓库')
       deployStatus.value = 'success'
       deployResult.value = {
         url: siteUrl,
@@ -632,7 +601,8 @@ export const useDeployStore = defineStore('deploy', () => {
         repoInfo: repoInfo.value,
         projectType: projectType.value,
         deployedAt: new Date().toISOString(),
-        isNetlify: true
+        isNetlify: true,
+        needsManualSetup: true
       }
       
       // 添加到历史记录
